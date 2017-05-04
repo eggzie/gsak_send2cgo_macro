@@ -1,0 +1,207 @@
+#*******************************************
+# MacVersion = 0.3
+# MacDescription = Send to c:geo (filter or cache)
+# MacAuthor = eggzie
+# MacFileName = Send2cgeoCurl.gsk
+# MacUrl = 
+# 
+# Requires curl.exe to be installed
+# needs send2.cgeo.org browser_code cookie value
+#*******************************************
+Declare var=$originalfav type=numeric
+Declare var=$SendToCgeoKey type=string
+Declare var=$Curlexe type=string
+
+$send2cgo_data_file = Slashadd($_AppData) + "send2cgeo.dat"
+
+$count = 0
+IF FileExists($send2cgo_data_file)
+  FILEREAD File=$send2cgo_data_file
+  if $count = 0 
+    $SendToCgeoKey=$line
+  else
+    $Curlexe=$line
+  endif
+  $count=$count+1
+  ENDREAD
+ENDIF
+
+$SendToCgeoKeyFromFile = $SendToCgeoKey
+$CurlexeFromFile = $Curlexe
+$favtot=0
+$db=0
+$uniquec=0
+$data1 = "Form"
+$exit = Form($form,"")
+$cookie_name = "browser_code"
+$temp_dir = Slashadd($_AppData) + "Temp"
+# Update the send2.cgeo.org browser_code cookie value from you browser
+$url = "https://send2.cgeo.org/add.html?cache"
+$parms = "--silent --insecure --output "  + Slashadd($temp_dir) + "send2cgeo.html"
+$batfile = Slashadd($temp_dir) + "send2cgeo.bat"
+
+$wait = "yes"
+$hide = "yes"
+
+<data> VarName=$form
+Name = MyForm
+  Type = Form
+  Caption = Send2cgeo
+  Height = 300
+  Left = 426
+  Visible = Yes
+  Width = 492
+
+Name = titleform
+  Type = Label
+  Color = ff8700
+  Enabled = Yes
+  Font = Calibri
+  Height = 17
+  Left = 200
+  Size = 13
+  Style = Bold
+  Top = 15
+  Visible = Yes
+  Width = 85
+  Caption = Send2cgeo
+
+Name = SendToCgeoKeyLabel
+  Type = Label
+  Color = 000000
+  Enabled = Yes
+  Height = 17
+  Left = 10
+  Size = 10
+  Style = Bold
+  Top = 55
+  Visible = Yes
+  Width = 157
+  Caption = Send2cgeo Web Key:
+
+Name = SendToCgeoKey
+  Type = Edit
+  Enabled = Yes
+  Height = 21
+  Left = 170
+  Top = 55
+  Visible = Yes
+  Width = 300
+  Taborder = 10
+
+Name = CurlexeLabel
+  Type = Label
+  Color = 000000
+  Enabled = Yes
+  Height = 17
+  Left = 10
+  Size = 10
+  Style = Bold
+  Top = 80
+  Visible = Yes
+  Width = 132
+  Caption = Curl File Location:
+
+Name = Curlexe
+  Type = File
+  Enabled = Yes
+  Height = 21
+  Left = 170
+  Top = 80
+  Visible = Yes
+  Width = 300
+  Taborder = 11
+
+Name = unique
+  Type = Button
+  Enabled = Yes
+  Height = 25
+  Left = 20
+  Top = 225
+  Visible = Yes
+  Width = 120
+  Taborder = 12
+  Caption = Selected cache
+
+Name = alldb
+  Type = Button
+  Enabled = Yes
+  Height = 25
+  Left = 220
+  Top = 225
+  Visible = Yes
+  Width = 120
+  Taborder = 13
+  Caption = Selected filter
+
+<enddata>
+
+While True # Infinite loop to redisplay form as required
+  BeginCase
+    Case $exit = "SendToCgeoKey"
+	  $SendToCgeoKey=1
+    Case $exit = "SystemExit"
+      cancel
+    Case $exit = "unique"
+      $uniquec=1
+      break
+    Case $exit = "alldb"
+      $db=1
+      break
+    Case $exit = "SendToCgeoKey"
+      $SendToCgeoKey=1
+      break
+    Case $exit = "Curlexe"
+      $Curlexe=1
+      break
+  EndCase
+EndWhile
+
+if $db=1
+  $boucle = 0
+  Goto Position=Top
+
+  WHILE $boucle < $_Count
+    $boucle = $boucle + 1
+    showstatus msg=Submitting $d_code... ($boucle/$_Count) title=Send2cgeo width=600
+    GOSUB Name=pushToSend2cgeo
+    GoTo Position=Next
+  ENDWHILE
+  MsgOK msg= Send2cgeo successfully terminated. caption=Send2cgeo
+else
+  if $uniquec=1
+    showstatus msg=Submitting $d_code... title=Send2cgeo width=600
+    GOSUB Name=pushToSend2cgeo
+    MsgOK msg= Send2cgeo successfully terminated. caption=Send2cgeo
+  endif
+endif
+
+if $SendToCgeoKeyFromFile <> $SendToCgeoKey OR $CurlexeFromFile <> $Curlexe
+  GOSUB Name=writeDataFile
+endif
+
+BEGINSUB Name=writeDataFile
+  IF FileExists($send2cgo_data_file)
+    FILEERASE File=$send2cgo_data_file OnError=Continue
+  ENDIF
+  $data = PutFile("$send2cgo_data_file","$SendToCgeoKey" + $_CrLf)
+  IF Equal(Left($Data,7),"*Error*")
+    Pause Msg="$Data"
+    Cancel
+  ENDIF
+  $data = AppendFile("$send2cgo_data_file","$Curlexe"  + $_CrLf)
+    IF Equal(Left($Data,7),"*Error*")
+    Pause Msg="$Data"
+    Cancel
+  ENDIF
+ENDSUB
+
+BEGINSUB Name=pushToSend2cgeo
+  $data = PutFile("$batfile", "$Curlexe $parms --cookie $cookie_name=$SendToCgeoKey $url=$d_code")
+  RUNPGM wait=$wait hide=$hide pgm="$batfile"
+  #WEB URL=https://send2.cgeo.org/add.html?cache=$d_code
+ENDSUB
+
+BEGINSUB Name=pushToSend2cgeoWeb
+  WEB URL=https://send2.cgeo.org/add.html?cache=$d_code
+ENDSUB
