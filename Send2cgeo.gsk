@@ -1,5 +1,5 @@
 #*******************************************
-# MacVersion = 0.3
+# MacVersion = 0.4
 # MacDescription = Send to c:geo (filter or cache)
 # MacAuthor = eggzie
 # MacFileName = Send2cgeoCurl.gsk
@@ -11,6 +11,64 @@
 Declare var=$originalfav type=numeric
 Declare var=$SendToCgeoKey type=string
 Declare var=$Curlexe type=string
+Declare var=$cygwin type=string
+Declare var=$cygwin64 type=string
+Declare var=$curlexefile type=string
+
+$cygwin = "C:\cygwin\bin"
+$cygwin64 ="C:\cygwin64\bin"
+$curlexefile = "curl.exe"
+$UserAppData = SysInfo("WindowsFolder:AppData")
+$FireFoxDir = $UserAppData + "\Mozilla\Firefox"
+$FireFoxProfile_ini = $FireFoxDir + "\" + "profiles.ini"
+$CookiesFile = "cookies.sqlite"
+$CookieSQL = "select value from moz_cookies where host = 'send2.cgeo.org' and name = 'browser_code';"
+$regex_match_path = "Path=.*"
+$regex_path = "Path="
+$x = 0
+$count = 0
+#MsgOK msg=$FireFoxProfile_ini 
+IF FileExists( $FireFoxProfile_ini ) 
+  While $count = $x
+    FILEREAD FILE=$FireFoxProfile_ini
+      $value = $line
+      #MsgOK msg=$value
+      $count = RegExCount($regex_match_path, $value)
+      #MsgOK msg=$count
+    if $count > $x
+      Break
+    endif
+    ENDREAD
+  EndWhile
+
+  $FirefoxProfilePath = RegExReplace($regex_path,$value,"")
+  #MsgOK msg=$FirefoxProfilePath
+  $FirefoxProfilePath = RegExReplace("/",$FirefoxProfilePath,"\")
+  #MsgOK msg=$FirefoxProfilePath
+  $FireFoxDir = $FireFoxDir + "\" + $FirefoxProfilePath
+endif
+
+$FireFoxCookies = $FireFoxDir + "\" + $CookiesFile
+#MsgOK msg=$FireFoxCookies
+if FileExists( $FireFoxCookies )
+  $cookie = sqlite( "open",$FireFoxCookies)
+  #MsgOK msg=$cookie 
+  #MsgOK msg=$CookieSQL
+  $cookie = sqlite( "sql", $CookieSQL)
+  #MsgOK msg=$cookie 
+  if $cookie <> "" 
+    $SendToCgeoKey = $cookie
+  endif
+endif
+#MsgOK msg=$SendToCgeoKey 
+$Curlexe = $cygwin + "\" + $curlexefile 
+IF Not( FileExists( $Curlexe ))
+  $Curlexe = $cygwin64 + "\" + $curlexefile 
+  if Not( FileExists( $Curlexe ))
+    $Curlexe = ""
+  endif
+endif
+
 
 $send2cgo_data_file = Slashadd($_AppData) + "send2cgeo.dat"
 
@@ -18,14 +76,21 @@ $count = 0
 IF FileExists($send2cgo_data_file)
   FILEREAD File=$send2cgo_data_file
   if $count = 0 
-    $SendToCgeoKey=$line
+    $SendToCgeoKeyX=$line
   else
-    $Curlexe=$line
+    $CurlexeX=$line
   endif
   $count=$count+1
   ENDREAD
 ENDIF
 
+if $SendToCgeoKey = "" 
+  $SendToCgeoKey = $SendToCgeoKeyX
+endif
+
+if $Curlexe = "" 
+   $Curlexe = $CurlexeX
+endif
 $SendToCgeoKeyFromFile = $SendToCgeoKey
 $CurlexeFromFile = $Curlexe
 $favtot=0
@@ -177,6 +242,10 @@ else
 endif
 
 if $SendToCgeoKeyFromFile <> $SendToCgeoKey OR $CurlexeFromFile <> $Curlexe
+  GOSUB Name=writeDataFile
+endif
+
+if Not(FileExists($send2cgo_data_file))
   GOSUB Name=writeDataFile
 endif
 
