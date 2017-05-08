@@ -3,7 +3,7 @@
 # MacDescription = Send to c:geo (filter or cache)
 # MacAuthor = eggzie
 # MacFileName = Send2cgeoCurl.gsk
-# MacUrl = 
+# MacUrl = https://github.com/eggzie/gsak_send2cgo_macro
 # 
 # Requires curl.exe to be installed
 # needs send2.cgeo.org browser_code cookie value
