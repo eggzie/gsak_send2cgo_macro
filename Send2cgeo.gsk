@@ -1,5 +1,5 @@
 #*******************************************
-# MacVersion = 0.4
+# MacVersion = 0.5
 # MacDescription = Send to c:geo (filter or cache)
 # MacAuthor = eggzie
 # MacFileName = Send2cgeoCurl.gsk
@@ -15,6 +15,7 @@ Declare var=$cygwin type=string
 Declare var=$cygwin64 type=string
 Declare var=$curlexefile type=string
 
+$first = 0
 $cygwin = "C:\cygwin\bin"
 $cygwin64 ="C:\cygwin64\bin"
 $curlexefile = "curl.exe"
@@ -102,7 +103,8 @@ $cookie_name = "browser_code"
 $temp_dir = Slashadd($_AppData) + "Temp"
 # Update the send2.cgeo.org browser_code cookie value from you browser
 $url = "https://send2.cgeo.org/add.html?cache"
-$parms = "--silent --insecure --output "  + Slashadd($temp_dir) + "send2cgeo.html"
+#$parms = "--silent --insecure --output "  + Slashadd($temp_dir) + "send2cgeo.html"
+$parms = "--silent --insecure"
 $batfile = Slashadd($temp_dir) + "send2cgeo.bat"
 
 $wait = "yes"
@@ -222,22 +224,29 @@ While True # Infinite loop to redisplay form as required
   EndCase
 EndWhile
 
+
+$output = "REM $batfile" + $_CrLf
+
 if $db=1
   $boucle = 0
   Goto Position=Top
 
   WHILE $boucle < $_Count
     $boucle = $boucle + 1
-    showstatus msg=Submitting $d_code... ($boucle/$_Count) title=Send2cgeo width=600
+    showstatus msg=Sending $d_code... ($boucle/$_Count) title=Send2cgeo width=600
     GOSUB Name=pushToSend2cgeo
     GoTo Position=Next
   ENDWHILE
-  MsgOK msg= Send2cgeo successfully terminated. caption=Send2cgeo
+  GOSUB Name=initBatFile
+  GOSUB Name=runPushToSend2cgeo 
+  MsgOK msg=Send2cgeo successfully terminated. caption=Send2cgeo
 else
   if $uniquec=1
     showstatus msg=Submitting $d_code... title=Send2cgeo width=600
     GOSUB Name=pushToSend2cgeo
-    MsgOK msg= Send2cgeo successfully terminated. caption=Send2cgeo
+    GOSUB Name=initBatFile
+    GOSUB Name=runPushToSend2cgeo 
+    MsgOK msg=Send2cgeo successfully terminated. caption=Send2cgeo
   endif
 endif
 
@@ -265,10 +274,17 @@ BEGINSUB Name=writeDataFile
   ENDIF
 ENDSUB
 
+BEGINSUB Name=initBatFile
+  $data = PutFile("$batfile", $output)
+ENDSUB
+
 BEGINSUB Name=pushToSend2cgeo
-  $data = PutFile("$batfile", "$Curlexe $parms --cookie $cookie_name=$SendToCgeoKey $url=$d_code")
+  $output = $output + "REM $boucle/$_Count" + $_CrLf + "$Curlexe $parms --cookie $cookie_name=$SendToCgeoKey $url=$d_code > nul" + $_CrLf + $_CrLf
+ 
+ENDSUB
+
+BEGINSUB Name=runPushToSend2cgeo
   RUNPGM wait=$wait hide=$hide pgm="$batfile"
-  #WEB URL=https://send2.cgeo.org/add.html?cache=$d_code
 ENDSUB
 
 BEGINSUB Name=pushToSend2cgeoWeb
